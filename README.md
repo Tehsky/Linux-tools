@@ -1,1 +1,480 @@
-# Linux-tools
+# 🛠️ Linux 系统管理工具集
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Shell Script](https://img.shields.io/badge/Shell-Bash-green.svg)](https://www.gnu.org/software/bash/)
+[![Multi-Distro](https://img.shields.io/badge/Multi--Distro-Support-blue.svg)](#支持的发行版)
+[![Docker](https://img.shields.io/badge/Docker-Supported-2496ED.svg)](https://www.docker.com/)
+
+一个功能强大的 Linux 系统管理工具集，支持多种发行版，提供硬件管理、网络配置、容器化支持等全方位的系统管理功能。
+
+## ✨ 主要特性
+
+### 🌍 **多发行版支持**
+- 🐧 **Arch Linux** (pacman) - 完全支持，包括AUR提示
+- 🟠 **Ubuntu/Debian** (apt) - 完全支持，包括PPA管理
+- 🔵 **Fedora** (dnf) - 完全支持，包括RPM Fusion
+- 🔴 **CentOS/RHEL** (yum) - 完全支持，包括EPEL
+- 🦎 **openSUSE** (zypper) - 完全支持，包括OBS
+- 🟣 **Gentoo** (emerge) - 完全支持，包括USE标志配置
+
+### 🔧 **核心功能**
+- 🖥️ **硬件管理** - CPU微码、显卡驱动自动检测安装
+- 🐳 **容器化支持** - Docker完整安装配置和镜像加速器
+- 🌐 **网络诊断** - 完整的网络配置、故障排除和性能测试
+- ⚙️ **系统优化** - 内核管理、Swap优化、进程监控
+- 📦 **模块化设计** - 独立功能模块，便于维护和扩展
+- 🔒 **透明代理** - 网络代理配置和管理
+
+## 🎯 支持的发行版
+
+| 发行版 | 包管理器 | 特殊支持 | 状态 |
+|--------|----------|----------|------|
+| **Arch Linux** | `pacman` | AUR提示、mkinitcpio配置 | ✅ 完全支持 |
+| **Gentoo** | `emerge` | USE标志、内核编译指导 | ✅ 完全支持 |
+| **Ubuntu/Debian** | `apt` | PPA管理、snap支持 | ✅ 完全支持 |
+| **Fedora** | `dnf` | RPM Fusion、Flatpak | ✅ 完全支持 |
+| **CentOS/RHEL** | `yum` | EPEL仓库、企业支持 | ✅ 完全支持 |
+| **openSUSE** | `zypper` | OBS仓库、Tumbleweed | ✅ 完全支持 |
+
+## 📁 项目结构
+
+```
+linux-tools/
+├── 📄 linux-toolkit.sh            # 主工具脚本
+├── 📁 modules/                     # 功能模块
+│   ├── 🐳 docker.sh              # Docker管理
+│   ├── 🌐 network.sh             # 网络配置
+│   ├── 🔒 proxy.sh               # 透明代理
+│   ├── 🔧 kernel.sh              # 内核管理
+│   ├── 💾 swap.sh                # Swap管理
+│   └── ⚙️ process.sh             # 进程管理
+└── 📖 README.md                  # 项目说明
+```
+
+## 🚀 快速开始
+
+### 1. 下载工具
+
+#### 方法一：Git克隆（推荐）
+```bash
+git clone https://github.com/Tehsky/linux-toolkit.git
+cd linux-toolkit
+```
+
+#### 方法二：直接下载
+```bash
+curl -L https://github.com/Tehsky/linux-toolkit/archive/main.zip -o linux-toolkit.zip
+unzip linux-toolkit.zip
+cd linux-toolkit-main
+```
+
+#### 方法三：单独下载主脚本
+```bash
+curl -O https://raw.githubusercontent.com/Tehsky/linux-toolkit/main/linux-toolkit.sh
+chmod +x linux-toolkit.sh
+```
+
+### 2. 运行工具
+
+```bash
+# 给脚本执行权限
+chmod +x linux-toolkit.sh
+
+# 运行主工具（需要root权限）
+sudo ./linux-toolkit.sh
+```
+
+### 3. 选择功能
+
+工具会显示交互式菜单，选择您需要的功能：
+
+```
+=== Linux 系统管理工具 ===
+1. 安装处理器微码
+2. 安装显卡驱动
+3. Docker管理
+4. 网络配置
+5. 透明代理配置
+6. 内核管理
+7. Swap管理
+8. 进程管理
+0. 退出
+```
+
+## 🔧 功能详解
+
+### 🖥️ 硬件管理
+
+<details>
+<summary><strong>📦 处理器微码管理</strong></summary>
+
+**功能说明**：
+- ✅ 自动检测 Intel/AMD 处理器
+- ✅ 安装对应的微码更新
+- ✅ 自动更新引导配置
+
+**支持的微码**：
+- **Intel**: `intel-ucode` (Arch), `intel-microcode` (Debian), `microcode_ctl` (RHEL)
+- **AMD**: `amd-ucode` (Arch), `amd64-microcode` (Debian), `linux-firmware` (Gentoo)
+
+**使用场景**：修复处理器安全漏洞，提升系统稳定性
+</details>
+
+<details>
+<summary><strong>🎮 显卡驱动管理</strong></summary>
+
+**功能说明**：
+- ✅ 自动检测显卡类型 (NVIDIA/AMD)
+- ✅ 安装对应的最佳驱动
+- ✅ 配置必要的系统设置
+
+**NVIDIA 支持**：
+- 自动安装闭源驱动
+- 配置内核模块 (Arch Linux)
+- 支持 CUDA 和 OpenGL
+
+**AMD 支持**：
+- 安装开源 Mesa 驱动
+- 支持 Vulkan 和 OpenGL
+- 硬件加速配置
+
+**Gentoo 特殊支持**：
+- 自动配置 USE 标志
+- 提供内核配置指导
+- 编译优化建议
+</details>
+
+### 🐳 Docker 容器化
+
+<details>
+<summary><strong>Docker 完整管理</strong></summary>
+
+**安装功能**：
+- ✅ 一键安装 Docker 和 Docker Compose
+- ✅ 自动启用和启动服务
+- ✅ 用户组权限配置
+
+**镜像加速器**：
+- 🇨🇳 中科大镜像 (推荐)
+- 🇨🇳 网易镜像
+- 🇨🇳 百度镜像
+- 🇨🇳 腾讯云镜像
+- 🇨🇳 阿里云镜像 (需注册)
+- 🔧 自定义镜像地址
+- 📊 镜像拉取速度测试
+
+**管理功能**：
+- 查看 Docker 状态和容器
+- 清理未使用的资源
+- 配置备份和恢复
+- 故障排除工具
+
+**Gentoo 特殊支持**：
+- 自动添加 Docker USE 标志
+- OpenRC 服务配置
+- 编译优化设置
+</details>
+
+### 🌐 网络管理
+
+<details>
+<summary><strong>网络配置和诊断</strong></summary>
+
+**网络信息**：
+- ✅ IP 地址和网关信息
+- ✅ DNS 配置查看
+- ✅ 网络接口状态
+- ✅ 路由表显示
+
+**连接测试**：
+- ✅ 网络连通性测试
+- ✅ DNS 解析测试
+- ✅ 网络速度测试 (需要 speedtest-cli)
+- ✅ 延迟和丢包检测
+
+**故障排除**：
+- ✅ 网络服务重启
+- ✅ DNS 刷新
+- ✅ 网络配置重置
+- ✅ 防火墙状态检查
+</details>
+
+### 🔒 透明代理
+
+<details>
+<summary><strong>代理配置管理</strong></summary>
+
+**功能说明**：
+- ✅ 透明代理配置
+- ✅ 代理规则管理
+- ✅ 流量转发设置
+- ✅ 代理状态监控
+
+**支持的代理**：
+- HTTP/HTTPS 代理
+- SOCKS5 代理
+- 透明代理模式
+- 自定义规则配置
+
+**使用场景**：
+- 网络访问优化
+- 流量管理
+- 安全防护
+- 开发测试环境
+</details>
+
+### ⚙️ 系统优化
+
+<details>
+<summary><strong>🔧 内核管理</strong></summary>
+
+**内核安装**：
+- ✅ **Xanmod 内核** - 高性能优化内核
+- ✅ **Zen 内核** - 桌面优化内核  
+- ✅ **LTS 内核** - 长期支持稳定内核
+- ✅ **自定义内核** - 用户自定义配置
+
+**内核管理**：
+- 查看已安装内核列表
+- 删除旧版本内核
+- 内核参数配置
+- 引导配置更新
+
+**Gentoo 特殊支持**：
+- 内核源码管理
+- 编译配置指导
+- USE 标志优化
+- 手动编译步骤
+</details>
+
+<details>
+<summary><strong>💾 Swap 管理</strong></summary>
+
+**Swap 配置**：
+- ✅ 创建 Swap 文件
+- ✅ 调整 Swap 大小
+- ✅ Swap 优先级设置
+- ✅ Swappiness 调优
+
+**性能优化**：
+- 内存使用监控
+- Swap 使用统计
+- 性能建议
+- 自动优化配置
+
+**使用场景**：
+- 内存不足系统
+- 休眠功能需求
+- 性能调优
+- 服务器优化
+</details>
+
+<details>
+<summary><strong>⚙️ 进程管理</strong></summary>
+
+**进程监控**：
+- ✅ 实时进程查看
+- ✅ CPU 和内存使用率
+- ✅ 进程树显示
+- ✅ 资源占用排序
+
+**进程控制**：
+- 进程启动和停止
+- 信号发送
+- 优先级调整
+- 服务管理
+
+**系统监控**：
+- 系统负载查看
+- 资源使用统计
+- 性能瓶颈分析
+- 故障诊断
+</details>
+
+## 📋 使用示例
+
+### 基本使用流程
+
+```bash
+# 1. 下载并运行工具
+sudo ./linux-toolkit.sh
+
+# 2. 选择功能（例如：安装Docker）
+# 选择菜单项 3 - Docker管理
+
+# 3. 按照提示完成配置
+# 工具会自动检测系统并安装相应软件包
+```
+
+### 高级使用技巧
+
+```bash
+# 直接运行特定模块
+sudo bash modules/docker.sh
+
+# 检查系统兼容性
+./linux-toolkit.sh --check
+
+# 查看详细日志
+./linux-toolkit.sh --verbose
+```
+
+## 🛠️ 故障排除
+
+### 常见问题
+
+<details>
+<summary><strong>❓ 包管理器检测失败</strong></summary>
+
+**可能原因**：
+- 不支持的发行版
+- 包管理器未安装
+- 权限不足
+
+**解决方案**：
+```bash
+# 检查发行版信息
+cat /etc/os-release
+
+# 检查包管理器
+which pacman apt dnf yum zypper emerge
+
+# 确保以root权限运行
+sudo ./linux-toolkit.sh
+```
+</details>
+
+<details>
+<summary><strong>❓ Docker安装失败</strong></summary>
+
+**解决方案**：
+```bash
+# 检查系统架构
+uname -m
+
+# 清理旧的Docker安装
+sudo apt remove docker docker-engine docker.io containerd runc  # Debian/Ubuntu
+sudo pacman -R docker docker-compose  # Arch Linux
+
+# 重新运行安装
+sudo ./linux-toolkit.sh
+```
+</details>
+
+<details>
+<summary><strong>❓ 网络功能异常</strong></summary>
+
+**解决方案**：
+```bash
+# 检查网络服务
+sudo systemctl status NetworkManager
+sudo systemctl status systemd-networkd
+
+# 重启网络服务
+sudo systemctl restart NetworkManager
+
+# 检查防火墙
+sudo ufw status  # Ubuntu
+sudo firewall-cmd --state  # RHEL/Fedora
+```
+</details>
+
+<details>
+<summary><strong>❓ Gentoo编译问题</strong></summary>
+
+**解决方案**：
+```bash
+# 更新Portage树
+sudo emerge --sync
+
+# 检查USE标志
+emerge --info | grep USE
+
+# 查看编译日志
+tail -f /var/tmp/portage/*/temp/build.log
+
+# 清理失败的编译
+sudo emerge --clean
+```
+</details>
+
+## 🔧 自定义配置
+
+### 添加新的发行版支持
+
+```bash
+# 在主脚本中添加包管理器检测
+if command -v your_package_manager &> /dev/null; then
+    PKG_MANAGER="your_package_manager"
+    INSTALL_CMD="your_install_command"
+    # ... 其他配置
+fi
+```
+
+### 创建自定义模块
+
+```bash
+# 创建新模块文件
+cat > modules/custom.sh << 'EOF'
+#!/bin/bash
+
+# 自定义功能函数
+custom_function() {
+    echo "执行自定义功能..."
+    # 您的代码
+}
+EOF
+
+# 在主脚本中调用
+source "$SCRIPT_DIR/modules/custom.sh"
+custom_function
+```
+
+## 🤝 贡献指南
+
+欢迎贡献代码和建议！
+
+### 如何贡献
+1. Fork 本仓库
+2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 开启 Pull Request
+
+### 开发规范
+- 使用 Bash 编写脚本
+- 添加详细的注释
+- 遵循现有代码风格
+- 测试所有支持的发行版
+- 更新相关文档
+
+### 报告问题
+- 使用 [GitHub Issues](https://github.com/Tehsky/linux-toolkit/issues)
+- 提供详细的错误信息
+- 包含系统环境信息
+- 附上相关日志文件
+
+## 📄 许可证
+
+本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情
+
+## 🙏 致谢
+
+- 各 Linux 发行版社区
+- Docker 开发团队
+- 开源软件贡献者
+- 所有用户和贡献者
+
+## ⭐ Star History
+
+如果这个项目对您有帮助，请给个 Star ⭐
+
+---
+
+<div align="center">
+
+**🛠️ 让 Linux 系统管理更简单！**
+
+[⬆️ 回到顶部](#️-linux-系统管理工具集)
+
+</div>
