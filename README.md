@@ -90,15 +90,34 @@ sudo ./linux-toolkit.sh
 
 ```
 === Linux 系统管理工具 ===
-1. 安装处理器微码
-2. 安装显卡驱动
-3. Docker管理
-4. 网络配置
-5. 透明代理配置
-6. 内核管理
-7. Swap管理
-8. 进程管理
-0. 退出
+1. 📦 安装处理器微码 (自动识别Intel/AMD)
+2. 🎮 安装显卡驱动 (AMD开源/NVIDIA闭源)
+3. 🐳 安装Docker并配置加速器
+4. 🌐 查看网络配置 (IP/网关/DNS)
+5. 🔒 配置透明代理 (主流翻墙软件)
+6. 🔧 安装第三方内核
+7. 💾 Swap管理
+8. ⚙️ 系统进程管理
+9. 🔄 系统更新
+0. 🚪 退出
+```
+
+**🔒 透明代理菜单 (选项5)**：
+```
+=== 透明代理配置 ===
+1. 🦄 V2Ray/Xray (推荐)
+2. 🐱 Clash/Clash Meta
+3. 🔒 Shadowsocks + iptables
+4. 🌐 Trojan-Go
+5. 📡 Hysteria
+6. ⚡ SingBox
+7. 🔧 自定义透明代理规则
+8. 🌐 配置TUN模式代理
+9. 💻 配置终端代理环境
+10. 📊 查看代理状态
+11. 🔍 检查依赖项
+12. 🗑️ 卸载代理软件
+0. 返回主菜单
 ```
 
 ## 🔧 功能详解
@@ -202,25 +221,48 @@ sudo ./linux-toolkit.sh
 ### 🔒 透明代理
 
 <details>
-<summary><strong>代理配置管理</strong></summary>
+<summary><strong>代理配置管理 - 全新升级</strong></summary>
 
-**功能说明**：
-- ✅ 透明代理配置
-- ✅ 代理规则管理
-- ✅ 流量转发设置
-- ✅ 代理状态监控
+**🆕 新增功能**：
+- ✅ **自动依赖检测** - 智能检测并安装缺失的组件
+- ✅ **多源安装** - 支持多个下载源，提高安装成功率
+- ✅ **终端代理配置** - 一键配置终端环境变量
+- ✅ **TUN模式支持** - 支持TUN网卡透明代理
+- ✅ **错误恢复** - 安装失败时自动重试和备用方案
 
-**支持的代理**：
-- HTTP/HTTPS 代理
-- SOCKS5 代理
-- 透明代理模式
-- 自定义规则配置
+**支持的代理软件**：
+- 🦄 **V2Ray/Xray** (推荐) - 功能强大的代理工具
+- 🐱 **Clash/Clash Meta** - 现代化代理客户端
+- 🔒 **Shadowsocks** - 轻量级代理协议
+- 🌐 **Trojan-Go** - 伪装流量代理
+- 📡 **Hysteria** - 基于QUIC的高速代理
+- ⚡ **SingBox** - 通用代理平台
+
+**代理模式**：
+- **透明代理模式** - iptables规则自动配置
+- **TUN模式** - 虚拟网卡流量劫持
+- **HTTP/HTTPS代理** - 标准代理协议
+- **SOCKS5代理** - 通用代理协议
+
+**智能功能**：
+- 🔍 **依赖检查** - 自动检测curl、wget、iptables等必需工具
+- 🔄 **重试机制** - 下载失败时自动尝试备用源
+- ⚙️ **错误处理** - 完善的错误恢复和回退机制
+- 📊 **状态监控** - 实时查看代理服务状态
+- 💻 **终端集成** - 自动配置shell环境变量
+
+**终端代理管理**：
+```bash
+px      # 开启代理
+pxoff   # 关闭代理
+pxs     # 查看代理状态
+```
 
 **使用场景**：
-- 网络访问优化
-- 流量管理
-- 安全防护
-- 开发测试环境
+- 网络访问优化和加速
+- 开发环境代理配置
+- 服务器透明代理部署
+- 网络流量管理和监控
 </details>
 
 ### ⚙️ 系统优化
@@ -376,6 +418,81 @@ sudo systemctl restart NetworkManager
 # 检查防火墙
 sudo ufw status  # Ubuntu
 sudo firewall-cmd --state  # RHEL/Fedora
+```
+</details>
+
+<details>
+<summary><strong>❓ 透明代理安装失败</strong></summary>
+
+**可能原因**：
+- 网络连接问题
+- GitHub访问受限
+- 依赖项缺失
+- 权限不足
+
+**解决方案**：
+```bash
+# 检查网络连接
+ping -c 3 github.com
+
+# 手动检查依赖项
+sudo ./linux-toolkit.sh
+# 选择 5 -> 11 (检查依赖项)
+
+# 清理失败的安装
+sudo systemctl stop v2ray xray clash 2>/dev/null
+sudo rm -f /usr/local/bin/{v2ray,xray,clash}
+
+# 使用代理安装（如果有其他代理）
+export http_proxy=http://127.0.0.1:8080
+sudo -E ./linux-toolkit.sh
+```
+</details>
+
+<details>
+<summary><strong>❓ TUN设备不可用</strong></summary>
+
+**解决方案**：
+```bash
+# 检查TUN模块
+lsmod | grep tun
+
+# 加载TUN模块
+sudo modprobe tun
+
+# 永久加载TUN模块
+echo 'tun' | sudo tee -a /etc/modules-load.d/tun.conf
+
+# 检查TUN设备
+ls -la /dev/net/tun
+
+# 如果设备不存在，创建设备节点
+sudo mkdir -p /dev/net
+sudo mknod /dev/net/tun c 10 200
+sudo chmod 666 /dev/net/tun
+```
+</details>
+
+<details>
+<summary><strong>❓ 终端代理环境变量无效</strong></summary>
+
+**解决方案**：
+```bash
+# 重新加载配置文件
+source /etc/profile.d/proxy.sh
+
+# 检查环境变量
+echo $http_proxy
+echo $https_proxy
+echo $all_proxy
+
+# 手动设置代理
+export http_proxy=http://127.0.0.1:8080
+export https_proxy=http://127.0.0.1:8080
+export all_proxy=socks5://127.0.0.1:1080
+
+# 测试代理连接
+curl -I --proxy $http_proxy https://www.google.com
 ```
 </details>
 
