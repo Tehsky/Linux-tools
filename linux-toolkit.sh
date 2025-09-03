@@ -214,7 +214,208 @@ install_microcode() {
     read -p "按Enter键继续..."
 }
 
-# 安装显卡驱动
+# 检查DKMS依赖
+check_dkms_dependencies() {
+    local missing_deps=()
+    
+    # 检查DKMS
+    if ! command -v dkms &> /dev/null; then
+        missing_deps+=("dkms")
+    fi
+    
+    # 检查编译工具链
+    case "$PKG_MANAGER" in
+        "pacman")
+            if ! pacman -Qi base-devel &> /dev/null; then
+                missing_deps+=("base-devel")
+            fi
+            if ! pacman -Qi linux-headers &> /dev/null; then
+                missing_deps+=("linux-headers")
+            fi
+            ;;
+        "emerge")
+            if ! command -v gcc &> /dev/null; then
+                missing_deps+=("sys-devel/gcc")
+            fi
+            if ! command -v make &> /dev/null; then
+                missing_deps+=("sys-devel/make")
+            fi
+            ;;
+        "apt")
+            if ! dpkg -l | grep -q build-essential; then
+                missing_deps+=("build-essential")
+            fi
+            if ! dpkg -l | grep -q linux-headers-$(uname -r); then
+                missing_deps+=("linux-headers-$(uname -r)")
+            fi
+            ;;
+        "dnf"|"yum")
+            if ! rpm -q kernel-devel &> /dev/null; then
+                missing_deps+=("kernel-devel")
+            fi
+            if ! rpm -q gcc &> /dev/null; then
+                missing_deps+=("gcc")
+            fi
+            ;;
+    esac
+    
+    if [[ ${#missing_deps[@]} -gt 0 ]]; then
+        warn "检测到缺少DKMS依赖: ${missing_deps[*]}"
+        read -p "是否自动安装这些依赖? (Y/n): " install_deps
+        if [[ "$install_deps" != "n" && "$install_deps" != "N" ]]; then
+            log "安装DKMS依赖..."
+            $INSTALL_CMD ${missing_deps[*]}
+            success "DKMS依赖安装完成"
+        else
+            error "缺少必要依赖，DKMS功能可能无法正常工作"
+            return 1
+        fi
+    fi
+    
+    return 0
+}
+
+# 安装NVIDIA驱动
+install_nvidia_driver() {
+    local use_dkms="$1"
+    
+    log "安装NVIDIA驱动 (DKMS: $use_dkms)..."
+    
+    case "$PKG_MANAGER" in
+        "pacman")
+            if [[ "$use_dkms" == "true" ]]; then
+                log "安装NVIDIA DKMS驱动..."
+                $INSTALL_CMD nvidia-dkms nvidia-utils nvidia-settings
+                # DKMS版本不需要手动添加到mkinitcpio，会自动处理
+                log "配置mkinitcpio hooks..."
+                if ! grep -q "nvidia" /etc/mkinitcpio.conf; then
+                    sed -i 's/MODULES=(/MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm /' /etc/mkinitcpio.conf
+                fi
+                # 确保dkms hook存在
+                if ! grep -q "dkms" /etc/mkinitcpio.conf; then
+                    sed -i 's/HOOKS=(/HOOKS=(base udev autodetect modconf block filesystems keyboard fsck dkms /' /etc/mkinitcpio.conf
+                fi
+                mkinitcpio -P
+            else
+                log "安装NVIDIA预编译驱动..."
+                $INSTALL_CMD nvidia nvidia-utils nvidia-settings
+                if ! grep -q "nvidia" /etc/mkinitcpio.conf; then
+                    sed -i 's/MODULES=(/MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm /' /etc/mkinitcpio.conf
+                    mkinitcpio -P
+                fi
+            fi
+            ;;
+        "emerge")
+            warn "Gentoo NVIDIA驱动安装需要手动配置"
+            echo "推荐步骤:"
+            echo "1. 在内核中启用: Device Drivers -> Graphics support -> Direct Rendering Manager"
+            echo "2. 添加USE标志: echo 'x11-drivers/nvidia-drivers tools' >> /etc/portage/package.use"
+            if [[ "$use_dkms" == "true" ]]; then
+                echo "3. 安装DKMS: emerge sys-kernel/dkms"
+                echo "4. 安装驱动: emerge x11-drivers/nvidia-drivers"
+                echo "5. 添加DKMS模块: dkms add nvidia/$(nvidia-settings --version | grep version | cut -d' ' -f4)"
+            else
+                echo "3. 安装驱动: emerge x11-drivers/nvidia-drivers"
+            fi
+            read -p "是否继续自动安装? (y/N): " auto_install
+            if [[ "$auto_install" =~ ^[Yy]$ ]]; then
+                echo 'x11-drivers/nvidia-drivers tools' >> /etc/portage/package.use
+                if [[ "$use_dkms" == "true" ]]; then
+                    $INSTALL_CMD sys-kernel/dkms
+                fi
+                $INSTALL_CMD x11-drivers/nvidia-drivers
+            fi
+            ;;
+        "apt")
+            log "添加NVIDIA驱动源..."
+            add-apt-repository -y ppa:graphics-drivers/ppa
+            $UPDATE_CMD
+            
+            if [[ "$use_dkms" == "true" ]]; then
+                log "安装NVIDIA DKMS驱动..."
+                $INSTALL_CMD nvidia-driver-470 nvidia-dkms-470 nvidia-settings
+            else
+                log "安装NVIDIA预编译驱动..."
+                $INSTALL_CMD nvidia-driver-470 nvidia-settings
+            fi
+            ;;
+        "dnf")
+            log "启用RPM Fusion..."
+            $INSTALL_CMD https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm
+            $INSTALL_CMD https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
+            
+            if [[ "$use_dkms" == "true" ]]; then
+                log "安装NVIDIA DKMS驱动 (akmod)..."
+                $INSTALL_CMD akmod-nvidia xorg-x11-drv-nvidia-cuda
+                log "akmod-nvidia使用类似DKMS的自动编译机制"
+            else
+                log "安装NVIDIA预编译驱动..."
+                $INSTALL_CMD xorg-x11-drv-nvidia xorg-x11-drv-nvidia-cuda
+            fi
+            ;;
+        "yum")
+            warn "CentOS/RHEL需要手动配置EPEL和ELRepo仓库"
+            echo "建议步骤:"
+            echo "1. 安装EPEL: yum install epel-release"
+            echo "2. 安装ELRepo: yum install elrepo-release"
+            echo "3. 安装驱动: yum install nvidia-x11-drv"
+            ;;
+        "zypper")
+            log "安装NVIDIA驱动..."
+            if [[ "$use_dkms" == "true" ]]; then
+                $INSTALL_CMD nvidia-gfxG05-kmp-default nvidia-glG05 nvidia-settings
+                log "openSUSE使用KMP (Kernel Module Package) 系统，类似DKMS"
+            else
+                $INSTALL_CMD x11-video-nvidiaG05 nvidia-glG05 nvidia-settings
+            fi
+            ;;
+    esac
+}
+
+# 安装AMD驱动
+install_amd_driver() {
+    local use_dkms="$1"
+    
+    log "安装AMD驱动 (开源Mesa驱动)..."
+    
+    # AMD主要使用开源驱动，DKMS主要影响内核模块
+    case "$PKG_MANAGER" in
+        "pacman")
+            $INSTALL_CMD mesa xf86-video-amdgpu vulkan-radeon libva-mesa-driver mesa-vdpau
+            if [[ "$use_dkms" == "true" ]]; then
+                log "AMD开源驱动通常不需要DKMS，内核模块已包含在内核中"
+                # 如果需要特殊的AMD驱动（如AMDGPU-PRO），可以在这里添加
+            fi
+            ;;
+        "emerge")
+            log "配置AMD驱动USE标志..."
+            echo 'media-libs/mesa vulkan' >> /etc/portage/package.use
+            echo 'x11-libs/libdrm video_cards_amdgpu video_cards_radeon' >> /etc/portage/package.use
+            $INSTALL_CMD media-libs/mesa x11-drivers/xf86-video-amdgpu media-libs/vulkan-loader
+            if [[ "$use_dkms" == "true" ]]; then
+                log "AMD开源驱动已集成在内核中，通常不需要额外的DKMS模块"
+            fi
+            ;;
+        "apt")
+            $INSTALL_CMD mesa-vulkan-drivers xserver-xorg-video-amdgpu libva-mesa-driver
+            if [[ "$use_dkms" == "true" ]]; then
+                log "检查是否需要安装额外的AMD驱动包..."
+                # 可以添加AMDGPU-PRO驱动的DKMS支持
+            fi
+            ;;
+        "dnf")
+            $INSTALL_CMD mesa-dri-drivers mesa-vulkan-drivers xorg-x11-drv-amdgpu
+            if [[ "$use_dkms" == "true" ]]; then
+                log "AMD开源驱动已包含在内核中"
+            fi
+            ;;
+        "zypper")
+            $INSTALL_CMD Mesa-dri Mesa-gallium xf86-video-amdgpu
+            ;;
+    esac
+}
+
+# 安装显卡驱动主函数
 install_gpu_drivers() {
     log "检测显卡并安装驱动..."
     
@@ -228,74 +429,91 @@ install_gpu_drivers() {
     echo "$GPU_INFO"
     echo
     
-    # 检测NVIDIA显卡
+    # 询问是否使用DKMS
+    echo -e "${CYAN}=== 驱动安装选项 ===${NC}"
+    echo -e "${BLUE}DKMS (Dynamic Kernel Module Support) 说明:${NC}"
+    echo "• ✅ 内核更新时自动重新编译驱动模块"
+    echo "• ✅ 支持多个内核版本并存"
+    echo "• ✅ 减少内核升级后驱动失效问题"
+    echo "• ⚠️  需要编译工具链，安装时间较长"
+    echo "• ⚠️  可能出现编译失败的情况"
+    echo
+    echo "选择安装方式:"
+    echo "1. 🚀 预编译驱动 (推荐，快速安装)"
+    echo "2. 🔧 DKMS驱动 (自动适配内核更新)"
+    echo "3. 📋 显示详细信息后选择"
+    echo
+    read -p "请选择 (1-3): " driver_choice
+    
+    local use_dkms="false"
+    case $driver_choice in
+        2)
+            use_dkms="true"
+            log "选择DKMS驱动模式"
+            ;;
+        3)
+            echo -e "${BLUE}当前系统信息:${NC}"
+            echo "内核版本: $(uname -r)"
+            echo "系统架构: $(uname -m)"
+            echo "发行版: $DISTRO_NAME"
+            echo "包管理器: $PKG_MANAGER"
+            echo
+            read -p "是否使用DKMS驱动? (y/N): " dkms_confirm
+            if [[ "$dkms_confirm" =~ ^[Yy]$ ]]; then
+                use_dkms="true"
+            fi
+            ;;
+        *)
+            log "选择预编译驱动模式"
+            ;;
+    esac
+    
+    # 如果选择DKMS，检查依赖
+    if [[ "$use_dkms" == "true" ]]; then
+        if ! check_dkms_dependencies; then
+            error "DKMS依赖检查失败，回退到预编译驱动"
+            use_dkms="false"
+        fi
+    fi
+    
+    # 安装NVIDIA驱动
     if echo "$GPU_INFO" | grep -i nvidia &> /dev/null; then
-        log "检测到NVIDIA显卡，安装闭源驱动..."
-        
-        case "$PKG_MANAGER" in
-            "pacman")
-                $INSTALL_CMD nvidia nvidia-utils nvidia-settings
-                # 添加模块到mkinitcpio
-                if ! grep -q "nvidia" /etc/mkinitcpio.conf; then
-                    sed -i 's/MODULES=(/MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm /' /etc/mkinitcpio.conf
-                    mkinitcpio -P
-                fi
-                ;;
-            "emerge")
-                # Gentoo需要先配置内核和USE标志
-                warn "Gentoo NVIDIA驱动安装需要手动配置"
-                echo "1. 在内核中启用: Device Drivers -> Graphics support -> Direct Rendering Manager"
-                echo "2. 添加USE标志: echo 'x11-drivers/nvidia-drivers tools' >> /etc/portage/package.use"
-                echo "3. 安装驱动: emerge x11-drivers/nvidia-drivers"
-                read -p "是否继续自动安装? (y/N): " auto_install
-                if [[ "$auto_install" =~ ^[Yy]$ ]]; then
-                    echo 'x11-drivers/nvidia-drivers tools' >> /etc/portage/package.use
-                    $INSTALL_CMD x11-drivers/nvidia-drivers
-                fi
-                ;;
-            "apt")
-                # 添加非自由软件源
-                add-apt-repository -y ppa:graphics-drivers/ppa
-                $UPDATE_CMD
-                $INSTALL_CMD nvidia-driver-470 nvidia-settings
-                ;;
-            "dnf")
-                # 启用RPM Fusion
-                $INSTALL_CMD https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm
-                $INSTALL_CMD https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
-                $INSTALL_CMD akmod-nvidia xorg-x11-drv-nvidia-cuda
-                ;;
-        esac
-        
+        log "检测到NVIDIA显卡"
+        install_nvidia_driver "$use_dkms"
         success "NVIDIA驱动安装完成"
     fi
     
-    # 检测AMD显卡
+    # 安装AMD驱动
     if echo "$GPU_INFO" | grep -i amd &> /dev/null || echo "$GPU_INFO" | grep -i radeon &> /dev/null; then
-        log "检测到AMD显卡，安装开源驱动..."
-        
-        case "$PKG_MANAGER" in
-            "pacman")
-                $INSTALL_CMD mesa xf86-video-amdgpu vulkan-radeon libva-mesa-driver mesa-vdpau
-                ;;
-            "emerge")
-                log "安装AMD开源驱动..."
-                echo 'media-libs/mesa vulkan' >> /etc/portage/package.use
-                echo 'x11-libs/libdrm video_cards_amdgpu video_cards_radeon' >> /etc/portage/package.use
-                $INSTALL_CMD media-libs/mesa x11-drivers/xf86-video-amdgpu media-libs/vulkan-loader
-                ;;
-            "apt")
-                $INSTALL_CMD mesa-vulkan-drivers xserver-xorg-video-amdgpu
-                ;;
-            "dnf")
-                $INSTALL_CMD mesa-dri-drivers mesa-vulkan-drivers xorg-x11-drv-amdgpu
-                ;;
-        esac
-        
-        success "AMD开源驱动安装完成"
+        log "检测到AMD显卡"
+        install_amd_driver "$use_dkms"
+        success "AMD驱动安装完成"
+    fi
+    
+    # 检查是否检测到显卡
+    if ! echo "$GPU_INFO" | grep -iE "(nvidia|amd|radeon)" &> /dev/null; then
+        warn "未检测到NVIDIA或AMD显卡"
+        echo "检测到的显卡信息:"
+        echo "$GPU_INFO"
+        echo
+        echo "如果您使用Intel集成显卡，通常不需要额外安装驱动"
+        echo "如果您认为检测有误，请手动安装相应驱动"
+    fi
+    
+    # 显示后续步骤
+    echo
+    echo -e "${CYAN}=== 安装完成 ===${NC}"
+    if [[ "$use_dkms" == "true" ]]; then
+        echo -e "${GREEN}✅ DKMS驱动安装完成${NC}"
+        echo "• 内核更新时将自动重新编译驱动"
+        echo "• 可以使用 'dkms status' 查看DKMS模块状态"
+    else
+        echo -e "${GREEN}✅ 预编译驱动安装完成${NC}"
+        echo "• 内核更新后可能需要重新安装驱动"
     fi
     
     warn "显卡驱动更新需要重启系统才能生效"
+    echo
     read -p "按Enter键继续..."
 }
 
